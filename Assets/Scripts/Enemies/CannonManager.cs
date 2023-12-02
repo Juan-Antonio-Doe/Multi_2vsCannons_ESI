@@ -1,7 +1,9 @@
+using Photon.Pun;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class CannonManager : MonoBehaviour {
 
@@ -13,6 +15,15 @@ public class CannonManager : MonoBehaviour {
 
     [field: SerializeField, ReadOnlyField] private List<Transform> cannons { get; set; } = new List<Transform>();
     private GameObject[] cannonsAux { get; set;} = new GameObject[8];
+
+    [field: SerializeField] private GameObject victoryUI { get; set; }
+    [field: SerializeField] private GameObject gameOverUI { get; set; }
+    private bool courroutineStopped { get; set; } = true;
+
+    [field: Header("Debug")]
+    [field: SerializeField] private bool debug { get; set; }
+
+    private bool exiting { get; set; }
 
     private void OnValidate() {
 #if UNITY_EDITOR
@@ -30,26 +41,28 @@ public class CannonManager : MonoBehaviour {
                         cannons.Add(cannon.transform);
                     }
                 }
-
-                /*if (waypointsParent != null && (cannons.Count == 0 || cannons.Count != waypointsParent.childCount)) {
-
-                    cannons.Clear();
-                    foreach (Transform child in waypointsParent) {
-                        cannons.Add(child);
-                    }
-                }
-                else if (waypointsParent == null && cannons.Count > 0) {
-                    cannons.Clear();
-                }*/
         }
 #endif
     }
 
     void Start() {
+        courroutineStopped = false;
         StartCoroutine(ShootCannonBallCo());
     }
 
     void Update() {
+        if ((victoryUI.activeSelf || gameOverUI.activeSelf) && !courroutineStopped) {
+            courroutineStopped = true;
+            StopAllCoroutines();
+        }
+
+        // Force the players to leave the room when the game is over. (Porque Photon se rie en mi cara...)
+        if (PhotonNetwork.CurrentRoom != null) {
+            if (PhotonNetwork.CurrentRoom.PlayerCount >= 0 && (victoryUI.activeSelf || gameOverUI.activeSelf) && !exiting) {
+                exiting = true;
+                StartCoroutine(BruteForceExit());
+            }
+        }
         
     }
 
@@ -57,11 +70,30 @@ public class CannonManager : MonoBehaviour {
         yield return new WaitForSeconds(shootInterval);
 
         // Shoot cannon balls from a offset position from a random cannon's position in the direction of the cannon's forward.
-        Transform cannon = cannons[Random.Range(0, cannons.Count)];
-        GameObject cannonBall = Instantiate(cannonBallPrefab, cannon.position, cannon.rotation);
+        Transform cannon;
 
-        Destroy(cannonBall, cannonBallsLifeTime);
+        if (!debug)
+            cannon = cannons[Random.Range(0, cannons.Count)];
+        else
+            cannon = cannons[4];
 
-        StartCoroutine(ShootCannonBallCo());
+        if (!debug) {
+            GameObject cannonBall = Instantiate(cannonBallPrefab, cannon.position, cannon.rotation);
+
+            Destroy(cannonBall, cannonBallsLifeTime);
+        }
+        
+
+        if (!courroutineStopped || (PhotonNetwork.CurrentRoom.PlayerCount > 0))
+            StartCoroutine(ShootCannonBallCo());
+    }
+
+    IEnumerator BruteForceExit() {
+        yield return new WaitForSeconds(0.5f);
+
+        PhotonNetwork.LeaveRoom();
+
+        yield return new WaitForSeconds(2.5f);
+        SceneManager.LoadScene(0);
     }
 }

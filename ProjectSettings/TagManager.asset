@@ -6,6 +6,9 @@ TagManager:
   tags:
   - CannonBall
   - Cannon
+  - Bullet
+  - Victory
+  - GameOver
   layers:
   - Default
   - TransparentFX
