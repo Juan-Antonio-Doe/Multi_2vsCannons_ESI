@@ -2,9 +2,10 @@ using Photon.Pun;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class PlayerSpawn : MonoBehaviour {
+public class PlayerSpawn : MonoBehaviourPunCallbacks {
 
     [field: SerializeField] private GameObject prefab { get; set; }
     private float yPos { get; set; } = 0f;
@@ -43,4 +44,9 @@ public class PlayerSpawn : MonoBehaviour {
         return _spawnPos;
     }
 
+    public override void OnLeftRoom() {
+        base.OnLeftRoom();
+
+        SceneManager.LoadScene(0);
+    }
 }

@@ -1,11 +1,15 @@
+using ExitGames.Client.Photon;
 using Photon.Pun;
+using Photon.Pun.Demo.SlotRacer.Utils;
+using Photon.Realtime;
 using System.Collections;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class CannonManager : MonoBehaviour {
+public class CannonManager : MonoBehaviour, IOnEventCallback {
 
     [field: Header("Cannon Settings")]
     [field: SerializeField] private GameObject cannonBallPrefab { get; set; }
@@ -19,6 +23,8 @@ public class CannonManager : MonoBehaviour {
     [field: SerializeField] private GameObject victoryUI { get; set; }
     [field: SerializeField] private GameObject gameOverUI { get; set; }
     private bool courroutineStopped { get; set; } = true;
+
+    private const byte CANNON_BALL_SPAWN = 77;
 
     [field: Header("Debug")]
     [field: SerializeField] private bool debug { get; set; }
@@ -46,6 +52,8 @@ public class CannonManager : MonoBehaviour {
     }
 
     void Start() {
+        PhotonNetwork.AddCallbackTarget(this);
+
         courroutineStopped = false;
         StartCoroutine(ShootCannonBallCo());
     }
@@ -63,26 +71,23 @@ public class CannonManager : MonoBehaviour {
                 StartCoroutine(BruteForceExit());
             }
         }
-        
     }
 
     IEnumerator ShootCannonBallCo() {
         yield return new WaitForSeconds(shootInterval);
 
-        // Shoot cannon balls from a offset position from a random cannon's position in the direction of the cannon's forward.
-        Transform cannon;
+        if (PhotonNetwork.IsMasterClient)
+            SpawnCannonBall();
+    }
 
-        if (!debug)
-            cannon = cannons[Random.Range(0, cannons.Count)];
-        else
-            cannon = cannons[4];
+    void SpawnCannonBall() {
+        // Shoot cannon balls from a random cannon's position in the direction of the cannon's forward.
+        Transform cannon = cannons[Random.Range(0, cannons.Count)];
 
         if (!debug) {
-            GameObject cannonBall = Instantiate(cannonBallPrefab, cannon.position, cannon.rotation);
-
-            Destroy(cannonBall, cannonBallsLifeTime);
+            object[] _parameters = new object[] { cannon.position, cannon.rotation };
+            PhotonNetwork.RaiseEvent(CANNON_BALL_SPAWN, _parameters, new RaiseEventOptions { Receivers = ReceiverGroup.All }, SendOptions.SendReliable);
         }
-        
 
         if (!courroutineStopped || (PhotonNetwork.CurrentRoom.PlayerCount > 0))
             StartCoroutine(ShootCannonBallCo());
@@ -95,5 +100,21 @@ public class CannonManager : MonoBehaviour {
 
         yield return new WaitForSeconds(2.5f);
         SceneManager.LoadScene(0);
+    }
+
+    public void OnEvent(EventData photonEvent) {
+        //Debug.Log($"Evento recibido: {photonEvent.Code}");
+
+        if (photonEvent.Code == CANNON_BALL_SPAWN) {
+            object[] _parameters = (object[])photonEvent.CustomData;    // Recuperamos los datos enviados en el evento
+
+            // Los datos se recuperan en el mismo orden en el que se enviaron
+            Vector3 _spawnPos = (Vector3)_parameters[0];
+            Quaternion _spawnRot = (Quaternion)_parameters[1];
+
+            GameObject cannonBall = Instantiate(cannonBallPrefab, _spawnPos, _spawnRot);
+
+            Destroy(cannonBall, cannonBallsLifeTime);
+        }
     }
 }

@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(PhotonView))]
-public class PlayerController : /*MonoBehaviourPun, */MonoBehaviourPunCallbacks, IPunObservable {
+public class PlayerController : MonoBehaviourPunCallbacks, IPunObservable {
 
     [field: Header("Player Settings")]
     [field: SerializeField] private float speed { get; set; } = 5f;
@@ -184,11 +184,11 @@ public class PlayerController : /*MonoBehaviourPun, */MonoBehaviourPunCallbacks,
 
     void Exit() {
         PhotonNetwork.LeaveRoom();
-        OnLeftRoom();   // Tan listo que no se llama automaticamente. (No llega a llamarse)
+        //OnLeftRoom();   // Tan listo que no se llama automaticamente. (No llega a llamarse)
     }
 
     public override void OnLeftRoom() {
-        SceneManager.LoadScene(0);
         base.OnLeftRoom();
+        SceneManager.LoadScene(0);
     }   
 }
